@@ -78,11 +78,15 @@ def train(model, train_loader, val_loader, criterion, optimizer, epochs=20):
     train_losses, val_losses = [], []
     train_accuracies, val_accuracies = []
 
+    # Variable to store the highest validation accuracy
+    best_val_accuracy = 0.0
+
     for epoch in range(epochs):
         print(f"Epoch {epoch+1}/{epochs}")
         model.train()
         train_loss = 0
         train_correct = 0
+        total_train_samples = 0
 
         for imgs, labels in train_loader:
             imgs, labels = imgs.to(device), labels.to(device)
@@ -97,10 +101,14 @@ def train(model, train_loader, val_loader, criterion, optimizer, epochs=20):
             optimizer.step()
 
             train_loss += loss.item()
-            train_correct += (outputs.argmax(1) == labels).sum().item()
+
+            # Calculate accuracy
+            _, predicted = torch.max(outputs, 1)
+            train_correct += (predicted == labels).sum().item()
+            total_train_samples += labels.size(0)
 
         avg_train_loss = train_loss / len(train_loader)
-        train_accuracy = train_correct / len(train_loader.dataset)
+        train_accuracy = train_correct / total_train_samples
         train_losses.append(avg_train_loss)
         train_accuracies.append(train_accuracy)
 
@@ -108,6 +116,8 @@ def train(model, train_loader, val_loader, criterion, optimizer, epochs=20):
         model.eval()
         val_loss = 0
         val_correct = 0
+        total_val_samples = 0
+
         with torch.no_grad():
             for imgs, labels in val_loader:
                 imgs, labels = imgs.to(device), labels.to(device)
@@ -115,20 +125,27 @@ def train(model, train_loader, val_loader, criterion, optimizer, epochs=20):
                 loss = criterion(outputs, labels)
 
                 val_loss += loss.item()
-                val_correct += (outputs.argmax(1) == labels).sum().item()
+
+                # Calculate accuracy
+                _, predicted = torch.max(outputs, 1)
+                val_correct += (predicted == labels).sum().item()
+                total_val_samples += labels.size(0)
 
         avg_val_loss = val_loss / len(val_loader)
-        val_accuracy = val_correct / len(val_loader.dataset)
+        val_accuracy = val_correct / total_val_samples
         val_losses.append(avg_val_loss)
         val_accuracies.append(val_accuracy)
+
+        # Check if this is the best validation accuracy
+        if val_accuracy > best_val_accuracy:
+            best_val_accuracy = val_accuracy
 
         print(f"Training Loss: {avg_train_loss:.4f}, Training Accuracy: {train_accuracy:.4f}")
         print(f"Validation Loss: {avg_val_loss:.4f}, Validation Accuracy: {val_accuracy:.4f}")
 
     # Output overall accuracy at the end of training
     print("Training completed.")
-    overall_accuracy = (train_correct + val_correct) / (len(train_loader.dataset) + len(val_loader.dataset))
-    print(f"Overall Accuracy: {overall_accuracy:.4f}")
+    print(f"Highest Validation Accuracy: {best_val_accuracy:.4f}")
 
     # Plot results
     epochs_range = range(1, epochs + 1)
@@ -151,4 +168,5 @@ def train(model, train_loader, val_loader, criterion, optimizer, epochs=20):
     plt.show()
 
 # Train the model
-train(model, train_loader, val_loader, criterion, optimizer, epochs=100)
+train(model, train_loader, val_loader, criterion, optimizer, epochs=20)
+
